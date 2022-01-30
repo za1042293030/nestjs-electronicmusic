@@ -1,0 +1,205 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { SendCommentInfoDTO } from 'src/dto';
+import { Comment } from 'src/entity';
+import { CommentType } from 'src/enum';
+import { IPayload } from 'src/typings';
+import Util from 'src/util';
+import { getConnection, Repository } from 'typeorm';
+
+@Injectable()
+export class CommentService {
+  constructor(
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
+  ) {}
+
+  async getCommentsById(
+    type: CommentType,
+    id: number,
+    pageIndex: number,
+    pageSize: number,
+    protocol: string,
+    host: string,
+  ) {
+    const entity = this.getType(type);
+    const comments = await this.commentRepository
+      .createQueryBuilder('comment')
+      .select(['comment.id', 'comment.createTime', 'comment.content', 'comment.likedCount'])
+      .leftJoin('comment.createBy', 'user')
+      .addSelect(['user.id', 'user.nickName'])
+      .leftJoin('user.avatar', 'avatar', 'avatar.isDelete=0 and avatar.auditStatus=:status', {
+        status: '1',
+      })
+      .addSelect(['avatar.id', 'avatar.dir', 'avatar.name', 'avatar.type'])
+      .leftJoin(
+        'comment.children',
+        'children',
+        'children.isDelete=0 and children.auditStatus=:status',
+        {
+          status: '1',
+        },
+      )
+      .addSelect('children.id')
+      .where('comment.auditStatus=:status', { status: '1' })
+      .andWhere('comment.isDelete=0')
+      .andWhere(`comment.${entity}=:id`, { id })
+      .andWhere('comment.parent is null')
+      .orderBy('comment.createTime', 'DESC')
+      .skip(pageSize * (pageIndex - 1))
+      .take(pageSize)
+      .getMany();
+    return this.handleCommentsResponse(comments, protocol, host);
+  }
+
+  async getSubCommentsById(
+    id: number,
+    pageIndex: number,
+    pageSize: number,
+    protocol: string,
+    host: string,
+  ) {
+    const [comments, totalCount] = await this.commentRepository
+      .createQueryBuilder('comment')
+      .select(['comment.id', 'comment.createTime', 'comment.content', 'comment.likedCount'])
+      .leftJoin('comment.createBy', 'user')
+      .addSelect(['user.id', 'user.nickName'])
+      .leftJoin('user.avatar', 'avatar', 'avatar.isDelete=0 and avatar.auditStatus=:status', {
+        status: '1',
+      })
+      .addSelect(['avatar.id', 'avatar.dir', 'avatar.name', 'avatar.type'])
+      .leftJoin('comment.replyTo', 'replyuser')
+      .addSelect(['replyuser.id', 'replyuser.nickName'])
+      .where('comment.auditStatus=:status', { status: '1' })
+      .andWhere('comment.isDelete=0')
+      .andWhere('comment.parent=:id', { id })
+      .orderBy('comment.createTime', 'ASC')
+      .skip(pageSize * (pageIndex - 1))
+      .take(pageSize)
+      .getManyAndCount();
+    return {
+      data: this.handleSubCommentsResponse(comments, protocol, host),
+      totalCount,
+    };
+  }
+
+  async sendComment(info: SendCommentInfoDTO, user: IPayload) {
+    const { content, type, id, replyToId } = info;
+    const entity = this.getType(type);
+    await getConnection().transaction(async tem => {
+      const res = await tem
+        .createQueryBuilder()
+        .select(['comment.id'])
+        .from(Comment, 'comment')
+        .leftJoin('comment.createBy', 'user')
+        .addSelect(['user.id'])
+        .leftJoin('comment.parent', 'parent')
+        .addSelect(['parent.id'])
+        .where('comment.id=:id', { id: replyToId })
+        .andWhere('comment.isDelete=0')
+        .andWhere('comment.auditStatus=:status', { status: '1' })
+        .getOne();
+      await tem
+        .createQueryBuilder()
+        .insert()
+        .into(Comment)
+        .values({
+          content,
+          song: type === CommentType.SONG ? { id } : null,
+          album: type === CommentType.ALBUM ? { id } : null,
+          dynamic: type === CommentType.DYNAMIC ? { id } : null,
+          playlist: type === CommentType.PLAYLIST ? { id } : null,
+          createBy: {
+            id: user.id,
+          },
+          createTime: new Date(),
+          replyTo: {
+            id: res?.parent?.id ? res?.createBy?.id : null ?? null,
+          },
+          parent: replyToId
+            ? {
+                id: res?.parent?.id ?? replyToId,
+              }
+            : null,
+        })
+        .execute();
+      await tem
+        .createQueryBuilder()
+        .update(entity)
+        .set({
+          commentedCount: () => 'commented_count+1',
+        })
+        .where('id=:id', { id })
+        .execute();
+    });
+    return true;
+  }
+
+  getType(type: CommentType) {
+    let entity: string;
+    switch (type) {
+      case CommentType.SONG:
+        entity = 'song';
+        break;
+      case CommentType.ALBUM:
+        entity = 'album';
+        break;
+      case CommentType.DYNAMIC:
+        entity = 'dynamic';
+        break;
+      case CommentType.PLAYLIST:
+        entity = 'playlist';
+        break;
+      default:
+        break;
+    }
+    return entity;
+  }
+  handleCommentsResponse(comments: Comment[], protocol: string, host: string) {
+    const res = [];
+    for (const comment of comments) {
+      const { createBy, children } = comment;
+      delete comment.children;
+      res.push({
+        ...comment,
+        createBy: {
+          ...createBy,
+          avatar:
+            createBy?.avatar &&
+            Util.generateUrl(
+              protocol,
+              host,
+              '/' + createBy.avatar.dir + '/' + createBy.avatar.name + '.' + createBy.avatar.type,
+            ),
+        },
+        replyCount: children.length,
+      });
+    }
+    return res;
+  }
+
+  handleSubCommentsResponse(comments: Comment[], protocol: string, host: string) {
+    const res = [];
+    for (const comment of comments) {
+      res.push({
+        ...comment,
+        createBy: {
+          ...comment.createBy,
+          avatar:
+            comment.createBy?.avatar &&
+            Util.generateUrl(
+              protocol,
+              host,
+              '/' +
+                comment.createBy?.avatar.dir +
+                '/' +
+                comment.createBy?.avatar.name +
+                '.' +
+                comment.createBy?.avatar.type,
+            ),
+        },
+      });
+    }
+    return res;
+  }
+}
