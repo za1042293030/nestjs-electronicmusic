@@ -53,8 +53,10 @@ export class FileService {
           createTime: new Date(),
           createBy: () => user.id.toString(),
           name: fileName.split('.')[0],
-          original: originalNameArr[0],
-          type: originalNameArr[1],
+          original: originalNameArr
+            .filter((_item, index) => index !== originalNameArr.length - 1)
+            .join('.'),
+          type: originalNameArr[originalNameArr.length - 1].toLowerCase(),
           dir,
         },
       ])

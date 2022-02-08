@@ -9,7 +9,6 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Route, User } from '.';
-import { RoleApply } from './roleapply.entity';
 
 @Entity('role')
 export class Role {
@@ -55,10 +54,4 @@ export class Role {
 
   @OneToMany(() => User, user => user.role)
   users: User[];
-
-  @OneToMany(() => RoleApply, roleApply => roleApply.role)
-  applies: RoleApply[];
-
-/*   @ManyToMany(() => User, user => user.roles)
-  users: User[]; */
 }

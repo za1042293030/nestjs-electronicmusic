@@ -1,4 +1,4 @@
-import { FileService } from 'src/service/file.service';
+import { FileService } from 'src/service';
 import {
   Controller,
   Post,
@@ -13,7 +13,9 @@ import { IFile, IUserRequest } from 'src/typings';
 import Util from 'src/util';
 import { AuthGuard } from '@nestjs/passport';
 import { JWT } from 'src/enum';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('文件')
 @Controller('/api/file')
 export class FileController {
   constructor(private readonly fileService: FileService) {}
@@ -25,7 +27,7 @@ export class FileController {
    */
   @Post('/uploadImage')
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor('img', {
       limits: {
         fileSize: 5 * 1024 * 1024,
       },
@@ -36,17 +38,17 @@ export class FileController {
   async uploadImage(
     @UploadedFile() file: IFile,
     @Headers('host') host: string,
-    @Req() { protocol, user }: IUserRequest,
+    @Req() { user }: IUserRequest,
   ) {
     const { path, id } = await this.fileService.upload(file, 'img', user);
     return {
-      src: Util.generateUrl(protocol, host, path),
+      src: Util.generateUrl(path),
       id,
     };
   }
 
   /**
-   * 上传图片
+   * 上传歌曲
    * @param file 文件
    * @returns 文件URL
    */
@@ -63,11 +65,38 @@ export class FileController {
   async uploadSong(
     @UploadedFile() file: IFile,
     @Headers('host') host: string,
-    @Req() { protocol, user }: IUserRequest,
+    @Req() { user }: IUserRequest,
   ) {
     const { path, id } = await this.fileService.upload(file, 'song', user);
     return {
-      path: Util.generateUrl(protocol, host, path),
+      path: Util.generateUrl(path),
+      id,
+    };
+  }
+
+  /**
+   * 上传头像
+   * @param file 文件
+   * @returns 文件URL
+   */
+  @Post('/uploadAvatar')
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: {
+        fileSize: 1 * 1024 * 1024,
+      },
+      fileFilter: Util.imageFileFilter,
+    }),
+  )
+  @UseGuards(AuthGuard(JWT.LOGIN))
+  async uploadAvatar(
+    @UploadedFile() file: IFile,
+    @Headers('host') host: string,
+    @Req() { user }: IUserRequest,
+  ) {
+    const { path, id } = await this.fileService.upload(file, 'avatar', user);
+    return {
+      src: Util.generateUrl(path),
       id,
     };
   }

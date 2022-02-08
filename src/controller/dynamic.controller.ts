@@ -11,34 +11,33 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { DynamicService } from 'src/service';
-import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JWT } from 'src/enum';
 import { IUserRequest } from 'src/typings';
-import { SendDynamicInfoDTO } from 'src/dto';
+import { SendDynamicInfoDTO, IDInfoDTO } from 'src/dto';
+import { ApiTags } from '@nestjs/swagger';
+import { NumberMaxPipe } from 'src/pipe';
 
+@ApiTags('动态')
 @Controller('/api/dynamic')
 export class DynamicController {
-  constructor(private readonly dynamicService: DynamicService) {}
+  constructor(private readonly dynamicService: DynamicService) {
+  }
 
   @Get('/getRecommendDynamics')
   async getRecommendDynamics(
-    @Req() { protocol }: Request,
-    @Headers('host') host: string,
     @Query('pageIndex', ParseIntPipe) pageIndex: number,
-    @Query('pageSize', ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParseIntPipe, new NumberMaxPipe(10)) pageSize: number,
   ) {
-    return await this.dynamicService.getRecommendDynamics(pageIndex, pageSize, protocol, host);
+    return await this.dynamicService.getRecommendDynamics(pageIndex, pageSize);
   }
 
   @Get('/getLatestDynamics')
   async getLatestDynamics(
-    @Req() { protocol }: Request,
-    @Headers('host') host: string,
     @Query('pageIndex', ParseIntPipe) pageIndex: number,
-    @Query('pageSize', ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParseIntPipe, new NumberMaxPipe(10)) pageSize: number,
   ) {
-    return await this.dynamicService.getLatestDynamics(pageIndex, pageSize, protocol, host);
+    return await this.dynamicService.getLatestDynamics(pageIndex, pageSize);
   }
 
   @Post('/sendDynamic')
@@ -54,20 +53,26 @@ export class DynamicController {
   @UseGuards(AuthGuard(JWT.LOGIN))
   async getDynamicById(
     @Query('id', ParseIntPipe) id: number,
-    @Req() { protocol }: Request,
-    @Headers('host') host: string,
   ) {
-    return this.dynamicService.getDynamicById(id, protocol, host);
+    return this.dynamicService.getDynamicById(id);
   }
 
   @Get('/getDynamicByUserId')
   async getDynamicByUserId(
     @Query('id', ParseIntPipe) id: number,
-    @Req() { protocol }: Request,
-    @Headers('host') host: string,
+    @Headers('token') token: string | undefined,
     @Query('pageIndex', ParseIntPipe) pageIndex: number,
-    @Query('pageSize', ParseIntPipe) pageSize: number,
+    @Query('pageSize', ParseIntPipe, new NumberMaxPipe(10)) pageSize: number,
   ) {
-    return this.dynamicService.getDynamicByUserId(id, pageIndex, pageSize, protocol, host);
+    return this.dynamicService.getDynamicByUserId(id, pageIndex, pageSize, token);
+  }
+
+  @Post('/deleteDynamic')
+  @UseGuards(AuthGuard(JWT.LOGIN))
+  async deleteDynamic(
+    @Req() { user }: IUserRequest,
+    @Body(ValidationPipe) deleteDynamicInfo: IDInfoDTO,
+  ) {
+    return await this.dynamicService.deleteDynamic(deleteDynamicInfo, user.id);
   }
 }

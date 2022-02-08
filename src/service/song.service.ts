@@ -3,29 +3,27 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from 'src/entity';
 import Util from 'src/util';
 import { Repository } from 'typeorm';
+import { AuditStatus } from 'src/enum';
 
 @Injectable()
 export class SongService {
   constructor(
     @InjectRepository(Song)
     private readonly songRepository: Repository<Song>,
-  ) {}
+  ) {
+  }
 
   /**
    * 根据风格id查询歌曲
    * @param id 风格id
    * @param pageIndex 页码
    * @param pageSize 一页个数
-   * @param protocol 协议
-   * @param host 主机
    * @returns
    */
   async getSongsByStyleId(
     id: number,
     pageIndex: number,
     pageSize: number,
-    protocol: string,
-    host: string,
   ) {
     const [songs, totalCount] = await this.songRepository
       .createQueryBuilder('song')
@@ -34,12 +32,12 @@ export class SongService {
       .addSelect(['style.id', 'style.name'])
       .leftJoin('song.artists', 'artist')
       .addSelect(['artist.nickName'])
-      .leftJoin('song.file', 'file','file.isDelete=0 and file.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.file', 'file', 'file.isDelete=0 and file.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['file.dir', 'file.name', 'file.type'])
-      .leftJoin('song.cover', 'cover','cover.isDelete=0 and cover.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.cover', 'cover', 'cover.isDelete=0 and cover.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['cover.dir', 'cover.name', 'cover.type'])
       .where(
@@ -52,77 +50,76 @@ export class SongService {
             .where('songsub.is_delete=0')
             .andWhere('substyle.style_id=:id', { id })
             .andWhere('songsub.is_delete=0')
-            .andWhere('songsub.audit_status=:status', { status: '1' })
+            .andWhere('songsub.audit_status=:status', { status: AuditStatus.RESOLVE })
             .skip(pageSize * (pageIndex - 1))
             .take(pageSize)
             .getQuery()}`,
       )
       .andWhere('song.is_delete=0')
-      .andWhere('song.audit_status=:status', { status: '1' })
+      .andWhere('song.audit_status=:status', { status: AuditStatus.RESOLVE })
       .skip(pageSize * (pageIndex - 1))
       .take(pageSize)
       .getManyAndCount();
     return {
-      songs: this.handleSongsResponse(songs, protocol, host),
+      songs: this.handleSongsResponse(songs),
       totalCount,
     };
   }
+
   /**
    * 获取推荐歌曲
    * @param id 风格id
    * @param size 个数
-   * @param protocol 协议
-   * @param host 主机
    * @returns
    */
-  async getRecommendSongs(size: number, protocol: string, host: string, style: boolean) {
+  async getRecommendSongs(size: number, style: boolean) {
     const baseQuery = this.songRepository
       .createQueryBuilder('song')
       .select(['song.id', 'song.name', 'song.coverUrl', 'song.url'])
-      .leftJoin('song.file', 'file','file.isDelete=0 and file.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.file', 'file', 'file.isDelete=0 and file.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['file.dir', 'file.name', 'file.type'])
-      .leftJoin('song.cover', 'cover','cover.isDelete=0 and cover.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.cover', 'cover', 'cover.isDelete=0 and cover.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['cover.dir', 'cover.name', 'cover.type']);
     const songs = style
       ? await baseQuery
-          .leftJoin('song.styles', 'style')
-          .addSelect(['style.id', 'style.name'])
-          .leftJoin('song.artists', 'artist')
-          .addSelect(['artist.nickName', 'artist.id'])
-          .where('song.is_delete=0')
-          .andWhere('song.audit_status=:status', { status: '1' })
-          .andWhere('song.url <> :null', { null: 'null' })
-          .orWhere('song.file is not null')
-          .orderBy('RAND()')
-          .take(size)
-          .getMany()
+        .leftJoin('song.styles', 'style')
+        .addSelect(['style.id', 'style.name'])
+        .leftJoin('song.artists', 'artist')
+        .addSelect(['artist.nickName', 'artist.id'])
+        .where('song.is_delete=0')
+        .andWhere('song.audit_status=:status', { status: AuditStatus.RESOLVE })
+        .andWhere('song.url <> :null', { null: 'null' })
+        .orWhere('song.file is not null')
+        .orderBy('RAND()')
+        .take(size)
+        .getMany()
       : await baseQuery
-          .leftJoin('song.artists', 'artist')
-          .addSelect(['artist.nickName', 'artist.id'])
-          .where('song.is_delete=0')
-          .andWhere('song.audit_status=:status', { status: '1' })
-          .andWhere('song.url <> :null', { null: 'null' })
-          .orWhere('song.file is not null')
-          .orderBy('RAND()')
-          .take(size)
-          .getMany();
-    return this.handleSongsResponse(songs, protocol, host);
+        .leftJoin('song.artists', 'artist')
+        .addSelect(['artist.nickName', 'artist.id'])
+        .where('song.is_delete=0')
+        .andWhere('song.audit_status=:status', { status: AuditStatus.RESOLVE })
+        .andWhere('song.url <> :null', { null: 'null' })
+        .orWhere('song.file is not null')
+        .orderBy('RAND()')
+        .take(size)
+        .getMany();
+    return this.handleSongsResponse(songs);
   }
 
-  async getSongsByNameOrProducer(key: string, protocol: string, host: string, size = 5) {
+  async getSongsByNameOrProducer(key: string, size = 5) {
     const songs = await this.songRepository
       .createQueryBuilder('song')
       .select(['song.id', 'song.name', 'song.coverUrl', 'song.url'])
-      .leftJoin('song.file', 'file','file.isDelete=0 and file.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.file', 'file', 'file.isDelete=0 and file.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['file.dir', 'file.name', 'file.type'])
-      .leftJoin('song.cover', 'cover','cover.isDelete=0 and cover.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.cover', 'cover', 'cover.isDelete=0 and cover.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['cover.dir', 'cover.name', 'cover.type'])
       .leftJoin('song.styles', 'style')
@@ -130,7 +127,7 @@ export class SongService {
       .leftJoin('song.artists', 'artist')
       .addSelect(['artist.nickName', 'artist.id'])
       .where('song.is_delete=0')
-      .andWhere('song.audit_status=:status', { status: '1' })
+      .andWhere('song.audit_status=:status', { status: AuditStatus.RESOLVE })
       .andWhere(
         qb =>
           'song.id in ' +
@@ -142,15 +139,15 @@ export class SongService {
             .where('artistsub.nickName like :name', { name: '%' + key + '%' })
             .orWhere('songsub.name like :name', { name: '%' + key + '%' })
             .andWhere('songsub.is_delete=0')
-            .andWhere('songsub.audit_status=:status', { status: '1' })
+            .andWhere('songsub.audit_status=:status', { status: AuditStatus.RESOLVE })
             .getQuery(),
       )
       .take(size)
       .getMany();
-    return this.handleSongsResponse(songs, protocol, host);
+    return this.handleSongsResponse(songs);
   }
 
-  async getSongById(id: number, protocol: string, host: string) {
+  async getSongById(id: number) {
     const songs = await this.songRepository
       .createQueryBuilder('song')
       .select([
@@ -160,17 +157,14 @@ export class SongService {
         'song.url',
         'song.describe',
         'song.createTime',
+        'song.commentedCount',
       ])
-      .leftJoin('song.comments', 'comment','comment.isDelete=0 and comment.auditStatus=:status', {
-        status: '1',
-      })
-      .addSelect(['comment.id'])
-      .leftJoin('song.file', 'file','file.isDelete=0 and file.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.file', 'file', 'file.isDelete=0 and file.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['file.dir', 'file.name', 'file.type'])
-      .leftJoin('song.cover', 'cover','cover.isDelete=0 and cover.auditStatus=:status', {
-        status: '1',
+      .leftJoin('song.cover', 'cover', 'cover.isDelete=0 and cover.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['cover.dir', 'cover.name', 'cover.type'])
       .leftJoin('song.styles', 'style')
@@ -179,36 +173,34 @@ export class SongService {
       .addSelect(['artist.nickName', 'artist.id'])
       .where('song.is_delete=0')
       .andWhere('song.id=:id', { id })
-      .andWhere('song.audit_status=:status', { status: '1' })
+      .andWhere('song.audit_status=:status', { status: AuditStatus.RESOLVE })
       .orderBy('RAND()')
       .getOne();
-    return this.handleSongResponse(songs, protocol, host);
+    return this.handleSongResponse(songs);
   }
 
-  handleSongsResponse(songs: Song[], protocol: string, host: string): Song[] {
+  handleSongsResponse(songs: Song[]): Song[] {
     if (!songs) return;
     const res = [];
     for (const song of songs) {
-      res.push(this.handleSongResponse(song, protocol, host));
+      res.push(this.handleSongResponse(song));
     }
     return res;
   }
 
-  handleSongResponse(song: Song, protocol: string, host: string) {
+  handleSongResponse(song: Song) {
     if (!song) return;
     const { file, cover, coverUrl, url, comments } = song;
-    delete song.comments;
     delete song.coverUrl;
     delete song.url;
     return {
       ...song,
       file: file
-        ? Util.generateUrl(protocol, host, '/' + file.dir + '/' + file.name + '.' + file.type)
+        ? Util.generateUrl('/' + file.dir + '/' + file.name + '.' + file.type)
         : url,
       cover: cover
-        ? Util.generateUrl(protocol, host, '/' + cover.dir + '/' + cover.name + '.' + cover.type)
+        ? Util.generateUrl('/' + cover.dir + '/' + cover.name + '.' + cover.type)
         : coverUrl,
-      commentCount: comments && comments.length,
     };
   }
 }

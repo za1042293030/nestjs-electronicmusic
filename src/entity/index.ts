@@ -10,4 +10,3 @@ export * from './dynamic.entity';
 export * from './comment.entity';
 export * from './message.entity';
 export * from './like.entity';
-export * from './roleapply.entity';

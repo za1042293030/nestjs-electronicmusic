@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SendCommentInfoDTO } from 'src/dto';
 import { Comment } from 'src/entity';
-import { CommentType } from 'src/enum';
+import { AuditStatus, CommentType } from 'src/enum';
 import { IPayload } from 'src/typings';
 import Util from 'src/util';
 import { getConnection, Repository } from 'typeorm';
@@ -12,15 +12,14 @@ export class CommentService {
   constructor(
     @InjectRepository(Comment)
     private readonly commentRepository: Repository<Comment>,
-  ) {}
+  ) {
+  }
 
   async getCommentsById(
     type: CommentType,
     id: number,
     pageIndex: number,
     pageSize: number,
-    protocol: string,
-    host: string,
   ) {
     const entity = this.getType(type);
     const comments = await this.commentRepository
@@ -29,7 +28,7 @@ export class CommentService {
       .leftJoin('comment.createBy', 'user')
       .addSelect(['user.id', 'user.nickName'])
       .leftJoin('user.avatar', 'avatar', 'avatar.isDelete=0 and avatar.auditStatus=:status', {
-        status: '1',
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['avatar.id', 'avatar.dir', 'avatar.name', 'avatar.type'])
       .leftJoin(
@@ -37,11 +36,11 @@ export class CommentService {
         'children',
         'children.isDelete=0 and children.auditStatus=:status',
         {
-          status: '1',
+          status: AuditStatus.RESOLVE,
         },
       )
       .addSelect('children.id')
-      .where('comment.auditStatus=:status', { status: '1' })
+      .where('comment.auditStatus=:status', { status: AuditStatus.RESOLVE })
       .andWhere('comment.isDelete=0')
       .andWhere(`comment.${entity}=:id`, { id })
       .andWhere('comment.parent is null')
@@ -49,15 +48,13 @@ export class CommentService {
       .skip(pageSize * (pageIndex - 1))
       .take(pageSize)
       .getMany();
-    return this.handleCommentsResponse(comments, protocol, host);
+    return this.handleCommentsResponse(comments);
   }
 
   async getSubCommentsById(
     id: number,
     pageIndex: number,
     pageSize: number,
-    protocol: string,
-    host: string,
   ) {
     const [comments, totalCount] = await this.commentRepository
       .createQueryBuilder('comment')
@@ -65,12 +62,12 @@ export class CommentService {
       .leftJoin('comment.createBy', 'user')
       .addSelect(['user.id', 'user.nickName'])
       .leftJoin('user.avatar', 'avatar', 'avatar.isDelete=0 and avatar.auditStatus=:status', {
-        status: '1',
+        status: AuditStatus.RESOLVE,
       })
       .addSelect(['avatar.id', 'avatar.dir', 'avatar.name', 'avatar.type'])
       .leftJoin('comment.replyTo', 'replyuser')
       .addSelect(['replyuser.id', 'replyuser.nickName'])
-      .where('comment.auditStatus=:status', { status: '1' })
+      .where('comment.auditStatus=:status', { status: AuditStatus.RESOLVE })
       .andWhere('comment.isDelete=0')
       .andWhere('comment.parent=:id', { id })
       .orderBy('comment.createTime', 'ASC')
@@ -78,7 +75,7 @@ export class CommentService {
       .take(pageSize)
       .getManyAndCount();
     return {
-      data: this.handleSubCommentsResponse(comments, protocol, host),
+      data: this.handleSubCommentsResponse(comments),
       totalCount,
     };
   }
@@ -97,7 +94,7 @@ export class CommentService {
         .addSelect(['parent.id'])
         .where('comment.id=:id', { id: replyToId })
         .andWhere('comment.isDelete=0')
-        .andWhere('comment.auditStatus=:status', { status: '1' })
+        .andWhere('comment.auditStatus=:status', { status: AuditStatus.RESOLVE })
         .getOne();
       await tem
         .createQueryBuilder()
@@ -118,8 +115,8 @@ export class CommentService {
           },
           parent: replyToId
             ? {
-                id: res?.parent?.id ?? replyToId,
-              }
+              id: res?.parent?.id ?? replyToId,
+            }
             : null,
         })
         .execute();
@@ -155,7 +152,8 @@ export class CommentService {
     }
     return entity;
   }
-  handleCommentsResponse(comments: Comment[], protocol: string, host: string) {
+
+  handleCommentsResponse(comments: Comment[]) {
     const res = [];
     for (const comment of comments) {
       const { createBy, children } = comment;
@@ -167,8 +165,6 @@ export class CommentService {
           avatar:
             createBy?.avatar &&
             Util.generateUrl(
-              protocol,
-              host,
               '/' + createBy.avatar.dir + '/' + createBy.avatar.name + '.' + createBy.avatar.type,
             ),
         },
@@ -178,7 +174,7 @@ export class CommentService {
     return res;
   }
 
-  handleSubCommentsResponse(comments: Comment[], protocol: string, host: string) {
+  handleSubCommentsResponse(comments: Comment[]) {
     const res = [];
     for (const comment of comments) {
       res.push({
@@ -188,14 +184,12 @@ export class CommentService {
           avatar:
             comment.createBy?.avatar &&
             Util.generateUrl(
-              protocol,
-              host,
               '/' +
-                comment.createBy?.avatar.dir +
-                '/' +
-                comment.createBy?.avatar.name +
-                '.' +
-                comment.createBy?.avatar.type,
+              comment.createBy?.avatar.dir +
+              '/' +
+              comment.createBy?.avatar.name +
+              '.' +
+              comment.createBy?.avatar.type,
             ),
         },
       });

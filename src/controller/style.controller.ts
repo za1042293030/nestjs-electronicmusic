@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { StyleService } from 'src/service/style.service';
 
+@ApiTags('风格')
 @Controller('/api/style')
 export class StyleController {
   constructor(private readonly styleService: StyleService) {}

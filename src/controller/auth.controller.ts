@@ -5,15 +5,22 @@ import {
   Body,
   Get,
   Query,
-  HttpException,
-  HttpStatus,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { LoginInfoDTO, RegisterInfoDTO, TokenDTO } from 'src/dto';
 import { AuthService } from 'src/service/auth.service';
+import { AuthGuard } from '@nestjs/passport';
+import { IUserRequest } from 'src/typings';
+import { ChangePasswordInfoDTO } from 'src/dto';
+import { JWT } from 'src/enum';
 
+@ApiTags('认证')
 @Controller('/api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {
+  }
 
   /**
    * 登录验证，成功后下发token
@@ -46,5 +53,11 @@ export class AuthController {
   @Get('/checkNickNameUnique')
   async checkNickNameUnique(@Query('nickname') nickName: string) {
     return await this.authService.checkNickNameUnique(nickName);
+  }
+
+  @Post('/changePassword')
+  @UseGuards(AuthGuard(JWT.LOGIN))
+  async changePassword(@Req() { user }: IUserRequest, @Body(ValidationPipe) changePasswordInfo: ChangePasswordInfoDTO) {
+    return await this.authService.changePassword(user.id, changePasswordInfo);
   }
 }

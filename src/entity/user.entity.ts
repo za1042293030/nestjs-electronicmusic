@@ -10,8 +10,6 @@ import {
   JoinTable,
   OneToOne,
 } from 'typeorm';
-import { RoleApply } from './roleapply.entity';
-
 @Entity('user')
 export class User {
   @PrimaryGeneratedColumn({ name: 'user_id' })
@@ -122,7 +120,4 @@ export class User {
 
   @ManyToMany(() => User, user => user.followeds)
   followings: User[];
-
-  @ManyToOne(() => RoleApply, roleApply => roleApply.createBy)
-  roleApplies: RoleApply[];
 }

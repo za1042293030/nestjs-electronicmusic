@@ -3,13 +3,15 @@ import { Repository } from 'typeorm';
 import { User } from 'src/entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
-import { getUserListDTO } from 'src/dto/user/getUserList.dto';
 import Util from 'src/util';
-import { RegisterInfoDTO } from 'src/dto';
+import { RegisterInfoDTO, getUserListDTO } from 'src/dto';
+import { AuditStatus } from 'src/enum';
 
 @Injectable()
 export class UserService {
-  constructor(@InjectRepository(User) private readonly userRepository: Repository<User>) {}
+  constructor(@InjectRepository(User) private readonly userRepository: Repository<User>) {
+  }
+
   async getUserList(orderby: string, pageIndex: number, pageSize: number) {
     let result: getUserListDTO;
     try {
@@ -37,10 +39,10 @@ export class UserService {
     return data.identifiers[0].id;
   }
 
-  async getUserInfo(id: number, protocol: string, host: string) {
+  async getUserInfo(id: number) {
     const user = await this.userRepository
       .createQueryBuilder('user')
-      .select(['user.id', 'user.nickName', 'user.userName', 'user.phone'])
+      .select(['user.id', 'user.nickName', 'user.userName'])
       .leftJoin('user.role', 'role')
       .addSelect(['role.isAdmin', 'role.id'])
       .leftJoin('user.avatar', 'avatar')
@@ -49,17 +51,17 @@ export class UserService {
       .andWhere('role.isAdmin=0')
       .andWhere('user.id=:id', { id })
       .orWhere('user.user_avatar_file_id is null')
-      .andWhere('avatar.auditStatus=:status', { status: '1' })
+      .andWhere('avatar.auditStatus=:status', { status: AuditStatus.RESOLVE })
       .getOne();
     if (user) {
-      return this.handleUserInfo(user, protocol, host);
-    } else throw new HttpException('没有该用户', HttpStatus.OK);
+      return this.handleUserInfo(user);
+    } else return {};
   }
 
-  async getAdminInfo(id: number, protocol: string, host: string) {
+  async getAdminInfo(id: number) {
     const user = await this.userRepository
       .createQueryBuilder('user')
-      .select(['user.id', 'user.nickName', 'user.userName', 'user.phone', 'user.avatar'])
+      .select(['user.id', 'user.nickName', 'user.userName', 'user.avatar'])
       .leftJoin('user.role', 'role')
       .addSelect(['role.isAdmin', 'role.id'])
       .where('user.is_delete=0')
@@ -67,11 +69,11 @@ export class UserService {
       .andWhere('user.id=:id', { id })
       .getOne();
     if (user) {
-      return this.handleUserInfo(user, protocol, host);
-    } else throw new HttpException('没有该用户', HttpStatus.OK);
+      return this.handleUserInfo(user);
+    } else return {};
   }
 
-  handleUserInfo(user: User, protocol: string, host: string) {
+  handleUserInfo(user: User) {
     if (!user) return;
     const { password, ...userInfo } = user;
     const { avatar } = userInfo;
@@ -79,15 +81,15 @@ export class UserService {
       ...userInfo,
       avatar:
         avatar &&
-        Util.generateUrl(protocol, host, '/' + avatar.dir + '/' + avatar.name + '.' + avatar.type),
+        Util.generateUrl('/' + avatar.dir + '/' + avatar.name + '.' + avatar.type),
     };
   }
 
-  handleUserInfos(users: User[], protocol: string, host: string) {
+  handleUserInfos(users: User[]) {
     if (!users) return;
     const res = [];
     for (const user of users) {
-      res.push(this.handleUserInfo(user, protocol, host));
+      res.push(this.handleUserInfo(user));
     }
     return res;
   }

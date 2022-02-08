@@ -29,13 +29,11 @@ class Util {
 
   /**
    * 生成URL
-   * @param protocol 协议
-   * @param host 主机名（ip）与端口
    * @param path 路径
    * @returns http地址
    */
-  static generateUrl(protocol: string, host: string, path: string): string {
-    return `${protocol}://${host}${path}`;
+  static generateUrl(path: string): string {
+    return `/fstatic${path}`;
   }
 
   /**
@@ -49,10 +47,8 @@ class Util {
     file: IFile,
     cb: (error: Error, acceptFile: boolean) => void,
   ) {
-    if (file.originalname.length > 20)
-      cb(new HttpException('文件名不能超过20个字符', HttpStatus.BAD_REQUEST), false);
-    else if (file.originalname.split('.').length > 2)
-      cb(new HttpException('文件名不可以包含多个英文小数点（.）', HttpStatus.BAD_REQUEST), false);
+    if (file.originalname.length > 100)
+      cb(new HttpException('文件名不能超过100个字符', HttpStatus.BAD_REQUEST), false);
     else if (!file.mimetype.includes('image'))
       cb(new HttpException('上传的不是图片', HttpStatus.BAD_REQUEST), false);
     else cb(null, true);
