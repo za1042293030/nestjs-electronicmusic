@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Album } from 'src/entity';
+import { Album, User } from 'src/entity';
 import Util from 'src/util';
 import { Repository } from 'typeorm';
 import { AuditStatus } from 'src/enum';
@@ -92,6 +92,40 @@ export class AlbumService {
     return AlbumService.handleAlbumResponse(album);
   }
 
+  async getAlbumByUserId(id: number, pageIndex: number, pageSize: number) {
+    const albums = await this.albumRepository
+      .createQueryBuilder('album')
+      .select(['album.id', 'album.name', 'album.coverUrl', 'album.cover'])
+      .leftJoin('album.artists', 'artist')
+      .addSelect(['artist.nickName', 'artist.id'])
+      .leftJoin('album.songs', 'song', 'song.isDelete=0 and song.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
+      })
+      .addSelect(['song.id'])
+      .leftJoin('song.styles', 'style')
+      .addSelect(['style.id', 'style.name'])
+      .leftJoin('album.cover', 'cover', 'cover.isDelete=0 and cover.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
+      })
+      .addSelect(['cover.dir', 'cover.name', 'cover.type'])
+      .where('album.is_delete=0')
+      .andWhere('album.auditStatus=:status', { status: AuditStatus.RESOLVE })
+      .andWhere(qb => 'album.id in ' +
+        qb.subQuery()
+          .select(['album.id'])
+          .from(Album, 'album')
+          .leftJoin('album.artists', 'art')
+          .where('art.id=:id', { id })
+          .getQuery(),
+      )
+      .andWhere('album.coverUrl <> :null', { null: 'null' })
+      .orWhere('album.cover is not null')
+      .skip(pageSize * (pageIndex - 1))
+      .take(pageSize)
+      .getMany();
+    return AlbumService.handleAlbumsResponse(albums);
+  }
+
   /**
    * 处理专辑列表信息
    * @param albums 专辑列表
@@ -99,7 +133,7 @@ export class AlbumService {
    * @returns
    */
   static handleAlbumsResponse(albums: Album[], delSongs = true) {
-    if (!albums) return;
+    if (!albums) return [];
     const res = [];
     for (const album of albums) {
       res.push(this.handleAlbumResponse(album, delSongs));
@@ -115,7 +149,7 @@ export class AlbumService {
    */
   static handleAlbumResponse(album: Album, delSongs = false) {
     if (!album) return;
-    const { coverUrl, cover, songs, comments } = album;
+    const { coverUrl, cover, songs } = album;
     delete album.coverUrl;
     delSongs && delete album.songs;
     return {

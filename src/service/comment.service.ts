@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { SendCommentInfoDTO } from 'src/dto';
+import { IDInfoDTO, SendCommentInfoDTO } from 'src/dto';
 import { Comment } from 'src/entity';
 import { AuditStatus, CommentType } from 'src/enum';
 import { IPayload } from 'src/typings';
@@ -130,6 +130,29 @@ export class CommentService {
         .execute();
     });
     return true;
+  }
+
+  async deleteComment(deleteCommentInfo: IDInfoDTO, userId: number) {
+    const { id } = deleteCommentInfo;
+    const {
+      affected,
+    }
+      = await this.commentRepository.createQueryBuilder()
+      .update()
+      .set(
+        {
+          isDelete: true,
+        },
+      )
+      .where('id=:id', { id })
+      .andWhere('createBy=:userId', { userId })
+      .andWhere('auditStatus=:status', { status: AuditStatus.RESOLVE })
+      .execute();
+    if (affected === 0)
+      throw new UnauthorizedException('评论已经删除或非法删除评论');
+    else if (affected === 1)
+      return true;
+    else return false;
   }
 
   getType(type: CommentType) {

@@ -54,6 +54,8 @@ export class DynamicService {
       .where('dy.isDelete=0')
       .andWhere('dy.auditStatus=:status', { status: AuditStatus.RESOLVE })
       .andWhere('dy.isPublish=:isPublish', { isPublish: 1 })
+      .andWhere('CHAR_LENGTH(dy.content) > 50 OR pic.id is not null OR song.id is not null OR' +
+        ' user.role=2')
       .orderBy('RAND()')
       .skip(pageSize * (pageIndex - 1))
       .take(pageSize)
@@ -245,8 +247,8 @@ export class DynamicService {
     return this.handleDynamicsResponse(dynamics);
   }
 
-  async deleteDynamic(deletePlayListInfo: IDInfoDTO, userId: number) {
-    const { id } = deletePlayListInfo;
+  async deleteDynamic(deleteDynamicInfo: IDInfoDTO, userId: number) {
+    const { id } = deleteDynamicInfo;
     const {
       affected,
     }
@@ -259,9 +261,10 @@ export class DynamicService {
       )
       .where('id=:id', { id })
       .andWhere('createBy=:userId', { userId })
+      .andWhere('auditStatus=:status', { status: AuditStatus.RESOLVE })
       .execute();
     if (affected === 0)
-      throw new UnauthorizedException('动态已经删除或者非法删除动态');
+      throw new UnauthorizedException('动态已经删除或非法删除动态');
     else if (affected === 1)
       return true;
     else return false;

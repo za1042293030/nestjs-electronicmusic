@@ -29,7 +29,7 @@ export class FileController {
   @UseInterceptors(
     FileInterceptor('img', {
       limits: {
-        fileSize: 5 * 1024 * 1024,
+        fileSize: 8 * 1024 * 1024,
       },
       fileFilter: Util.imageFileFilter,
     }),
@@ -37,7 +37,6 @@ export class FileController {
   @UseGuards(AuthGuard(JWT.LOGIN))
   async uploadImage(
     @UploadedFile() file: IFile,
-    @Headers('host') host: string,
     @Req() { user }: IUserRequest,
   ) {
     const { path, id } = await this.fileService.upload(file, 'img', user);
@@ -56,7 +55,7 @@ export class FileController {
   @UseInterceptors(
     FileInterceptor('song', {
       limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: 20 * 1024 * 1024,
       },
       fileFilter: Util.songFileFilter,
     }),
@@ -64,7 +63,6 @@ export class FileController {
   @UseGuards(AuthGuard(JWT.LOGIN))
   async uploadSong(
     @UploadedFile() file: IFile,
-    @Headers('host') host: string,
     @Req() { user }: IUserRequest,
   ) {
     const { path, id } = await this.fileService.upload(file, 'song', user);
@@ -91,7 +89,6 @@ export class FileController {
   @UseGuards(AuthGuard(JWT.LOGIN))
   async uploadAvatar(
     @UploadedFile() file: IFile,
-    @Headers('host') host: string,
     @Req() { user }: IUserRequest,
   ) {
     const { path, id } = await this.fileService.upload(file, 'avatar', user);

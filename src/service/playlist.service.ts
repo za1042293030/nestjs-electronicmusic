@@ -4,7 +4,12 @@ import { PlayList } from 'src/entity';
 import Util from 'src/util';
 import { getConnection, Repository } from 'typeorm';
 import { SongService } from '.';
-import { AddSongToPlayListInfoDTO, CreatePlayListInfoDTO, IDInfoDTO, UpdatePlayListInfoDTO } from 'src/dto';
+import {
+  AddSongToPlayListInfoDTO,
+  CreatePlayListInfoDTO,
+  IDInfoDTO,
+  UpdatePlayListInfoDTO,
+} from 'src/dto';
 import { AuditStatus } from 'src/enum';
 
 @Injectable()
@@ -34,6 +39,8 @@ export class PlaylistService {
       .addSelect(['cover.dir', 'cover.name', 'cover.type'])
       .where('playlist.is_delete=0')
       .andWhere('playlist.auditStatus=:status', { status: AuditStatus.RESOLVE })
+      .andWhere('song.id is not null')
+      .andWhere('cover.id is not null')
       .orderBy('RAND()')
       .take(size)
       .getMany();
@@ -223,9 +230,10 @@ export class PlaylistService {
       )
       .where('id=:id', { id })
       .andWhere('createBy=:userId', { userId })
+      .andWhere('auditStatus=:status', { status: AuditStatus.RESOLVE })
       .execute();
     if (affected === 0)
-      throw new UnauthorizedException('歌单已经删除或者非法删除歌单');
+      throw new UnauthorizedException('歌单已经删除或非法删除歌单');
     else if (affected === 1)
       return true;
     else return false;
