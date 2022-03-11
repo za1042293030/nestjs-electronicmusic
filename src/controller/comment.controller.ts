@@ -13,7 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags } from '@nestjs/swagger';
 import { AddSongToPlayListInfoDTO, IDInfoDTO, SendCommentInfoDTO } from 'src/dto';
-import { CommentType, JWT } from 'src/enum';
+import { AuditStatus, CommentType, JWT } from 'src/enum';
 import { CommentService } from 'src/service';
 import { IUserRequest } from 'src/typings';
 import { NumberMaxPipe } from '../pipe/numberMax.pipe';
@@ -59,5 +59,23 @@ export class CommentController {
     @Body(ValidationPipe) deleteCommentInfo: IDInfoDTO,
   ) {
     return await this.commentService.deleteComment(deleteCommentInfo, user.id);
+  }
+
+  @Get('/getApprovingComments')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async getApprovingComments(
+    @Query('pageIndex', ParseIntPipe) pageIndex: number,
+    @Query('pageSize', ParseIntPipe, new NumberMaxPipe(100)) pageSize: number,
+  ) {
+    return await this.commentService.getApprovingComments(pageIndex, pageSize);
+  }
+
+  @Post('/changeCommentsAuditStatus')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async changeDynamicsAuditStatus(
+    @Query('id', ParseIntPipe) id: number,
+    @Query('status', new ParseEnumPipe(AuditStatus)) status: AuditStatus,
+  ) {
+    return await this.commentService.changeCommentsAuditStatus(id, status);
   }
 }

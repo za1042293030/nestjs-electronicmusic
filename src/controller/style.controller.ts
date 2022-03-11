@@ -11,4 +11,9 @@ export class StyleController {
   async getAllStyles() {
     return this.styleService.getAllStyles();
   }
+
+  @Get('/getSelectStyles')
+  async getSelectStyles(){
+    return this.styleService.getSelectStyles();
+  }
 }

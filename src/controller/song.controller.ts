@@ -1,8 +1,7 @@
-import { Controller, Get, ParseIntPipe, Query, Req, Headers, ParseBoolPipe } from '@nestjs/common';
+import { Controller, Get, ParseIntPipe, Query, ParseBoolPipe } from '@nestjs/common';
 import { SongService } from 'src/service';
-import { Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
-import { NumberMaxPipe } from '../pipe/numberMax.pipe';
+import { NumberMaxPipe } from 'src/pipe';
 
 @ApiTags('歌曲')
 @Controller('/api/song')

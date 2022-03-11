@@ -14,7 +14,9 @@ export class FileService {
   constructor(
     @InjectRepository(File)
     private readonly fileRepository: Repository<File>,
-  ) {}
+  ) {
+  }
+
   /**
    * 上传文件
    * @param file 文件
@@ -24,6 +26,7 @@ export class FileService {
     await this.validationDir(dir);
     return this.writeFile(file, dir, user);
   }
+
   /**
    * 写入文件
    * @param file 文件
@@ -31,6 +34,7 @@ export class FileService {
    */
   async writeFile(file: IFile, dir: string, user: IPayload) {
     const { size, originalname } = file;
+    const originalNameArr = originalname.split('.');
     const fileName = Util.generateFileName(originalname);
     const writeStream = createWriteStream(join(cwd(), '.', 'upload', dir, fileName));
     if (!writeStream.writable)
@@ -41,7 +45,6 @@ export class FileService {
     writeStream.write(file.buffer);
     writeStream.close();
     writeStream.end();
-    const originalNameArr = originalname.split('.');
     const {
       identifiers: [{ id }],
     } = await this.fileRepository
@@ -53,9 +56,7 @@ export class FileService {
           createTime: new Date(),
           createBy: () => user.id.toString(),
           name: fileName.split('.')[0],
-          original: originalNameArr
-            .filter((_item, index) => index !== originalNameArr.length - 1)
-            .join('.'),
+          original: originalname,
           type: originalNameArr[originalNameArr.length - 1].toLowerCase(),
           dir,
         },

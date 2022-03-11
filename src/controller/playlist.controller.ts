@@ -8,14 +8,14 @@ import {
   Post,
   UseGuards,
   Body,
-  ValidationPipe,
+  ValidationPipe, ParseEnumPipe,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PlaylistService } from 'src/service';
 import { AuthGuard } from '@nestjs/passport';
 import { IUserRequest } from 'src/typings';
 import { CreatePlayListInfoDTO, UpdatePlayListInfoDTO, IDInfoDTO, AddSongToPlayListInfoDTO } from 'src/dto';
-import { JWT } from 'src/enum';
+import { AuditStatus, JWT } from 'src/enum';
 import { NumberMaxPipe } from 'src/pipe';
 
 @ApiTags('歌单')
@@ -103,5 +103,23 @@ export class PlaylistController {
     @Body(ValidationPipe) deleteSongFromPlayListInfo: AddSongToPlayListInfoDTO,
   ) {
     return await this.playListService.deletePlayListSong(deleteSongFromPlayListInfo, user.id);
+  }
+
+  @Get('/getApprovingPlayLists')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async getApprovingPlayLists(
+    @Query('pageIndex', ParseIntPipe) pageIndex: number,
+    @Query('pageSize', ParseIntPipe, new NumberMaxPipe(100)) pageSize: number,
+  ) {
+    return await this.playListService.getApprovingPlayLists(pageIndex, pageSize);
+  }
+
+  @Post('/changePlayListsAuditStatus')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async changePlayListsAuditStatus(
+    @Query('id', ParseIntPipe) id: number,
+    @Query('status', new ParseEnumPipe(AuditStatus)) status: AuditStatus,
+  ) {
+    return await this.playListService.changePlayListsAuditStatus(id, status);
   }
 }

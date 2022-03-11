@@ -81,8 +81,7 @@ export class SearchService {
       .where('album.is_delete=0')
       .andWhere('album.auditStatus=:status', { status: AuditStatus.RESOLVE })
       .andWhere('album.name like :name', { name: '%' + key + '%' })
-      .andWhere('album.coverUrl <> :null', { null: 'null' })
-      .orWhere('album.cover is not null')
+      .andWhere('(album.coverUrl <> :null or album.cover is not null)', { null: 'null' })
       .skip(pageSize * (pageIndex - 1))
       .take(pageSize)
       .getManyAndCount();

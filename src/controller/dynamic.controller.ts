@@ -1,20 +1,20 @@
 import {
+  Body,
   Controller,
   Get,
-  Req,
-  Headers,
-  Query,
+  Headers, ParseEnumPipe,
   ParseIntPipe,
   Post,
+  Query,
+  Req,
   UseGuards,
-  Body,
   ValidationPipe,
 } from '@nestjs/common';
 import { DynamicService } from 'src/service';
 import { AuthGuard } from '@nestjs/passport';
-import { JWT } from 'src/enum';
+import { AuditStatus, JWT } from 'src/enum';
 import { IUserRequest } from 'src/typings';
-import { SendDynamicInfoDTO, IDInfoDTO } from 'src/dto';
+import { IDInfoDTO, SendDynamicInfoDTO } from 'src/dto';
 import { ApiTags } from '@nestjs/swagger';
 import { NumberMaxPipe } from 'src/pipe';
 
@@ -74,5 +74,23 @@ export class DynamicController {
     @Body(ValidationPipe) deleteDynamicInfo: IDInfoDTO,
   ) {
     return await this.dynamicService.deleteDynamic(deleteDynamicInfo, user.id);
+  }
+
+  @Get('/getApprovingDynamics')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async getApprovingDynamics(
+    @Query('pageIndex', ParseIntPipe) pageIndex: number,
+    @Query('pageSize', ParseIntPipe, new NumberMaxPipe(100)) pageSize: number,
+  ) {
+    return await this.dynamicService.getApprovingDynamics(pageIndex, pageSize);
+  }
+
+  @Post('/changeDynamicsAuditStatus')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async changeDynamicsAuditStatus(
+    @Query('id', ParseIntPipe) id: number,
+    @Query('status', new ParseEnumPipe(AuditStatus)) status: AuditStatus,
+  ) {
+    return await this.dynamicService.changeDynamicsAuditStatus(id, status);
   }
 }

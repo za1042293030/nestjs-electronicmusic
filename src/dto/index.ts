@@ -3,3 +3,4 @@ export * from './user';
 export * from './dynamic';
 export * from './comment';
 export * from './playlist';
+export * from './album';

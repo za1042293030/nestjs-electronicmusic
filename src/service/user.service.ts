@@ -73,6 +73,17 @@ export class UserService {
     } else return {};
   }
 
+  async getSelectArtists(key: string) {
+    return await this.userRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.nickName'])
+      .where('user.isDelete=0')
+      .andWhere('user.nickName like :name', { name: '%' + key + '%' })
+      .andWhere('user.role = :roleId', { roleId: 2 })
+      .take(20)
+      .getMany();
+  }
+
   handleUserInfo(user: User) {
     if (!user) return;
     const { password, ...userInfo } = user;

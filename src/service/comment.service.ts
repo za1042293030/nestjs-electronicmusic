@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IDInfoDTO, SendCommentInfoDTO } from 'src/dto';
-import { Comment } from 'src/entity';
+import { Comment, Dynamic, File } from 'src/entity';
 import { AuditStatus, CommentType } from 'src/enum';
 import { IPayload } from 'src/typings';
 import Util from 'src/util';
@@ -84,7 +84,7 @@ export class CommentService {
     const { content, type, id, replyToId } = info;
     const entity = this.getType(type);
     await getConnection().transaction(async tem => {
-      const res = await tem
+      const res = replyToId ? await tem
         .createQueryBuilder()
         .select(['comment.id'])
         .from(Comment, 'comment')
@@ -95,7 +95,7 @@ export class CommentService {
         .where('comment.id=:id', { id: replyToId })
         .andWhere('comment.isDelete=0')
         .andWhere('comment.auditStatus=:status', { status: AuditStatus.RESOLVE })
-        .getOne();
+        .getOne() : null;
       await tem
         .createQueryBuilder()
         .insert()
@@ -153,6 +153,42 @@ export class CommentService {
     else if (affected === 1)
       return true;
     else return false;
+  }
+
+  async getApprovingComments(pageIndex: number, pageSize: number) {
+    const [comments, totalCount] = await this.commentRepository
+      .createQueryBuilder('comment')
+      .select(['comment.id', 'comment.createTime', 'comment.content'])
+      .leftJoin('comment.createBy', 'user')
+      .addSelect(['user.id', 'user.nickName'])
+      .leftJoin('comment.replyTo', 'replyUser')
+      .addSelect(['replyUser.id', 'replyUser.nickName'])
+      .leftJoin('comment.parent', 'parent')
+      .addSelect(['parent.id'])
+      .leftJoin('parent.createBy', 'parentuser')
+      .addSelect(['parentuser.id', 'parentuser.nickName'])
+      .where('comment.auditStatus=:status', { status: AuditStatus.APPROVING })
+      .andWhere('comment.isDelete=0')
+      .orderBy('comment.createTime', 'DESC')
+      .skip(pageSize * (pageIndex - 1))
+      .take(pageSize)
+      .getManyAndCount();
+    return {
+      data: this.handleSubCommentsResponse(comments),
+      totalCount,
+    };
+  }
+
+  async changeCommentsAuditStatus(id: number, auditStatus: AuditStatus) {
+    await this.commentRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        auditStatus,
+      })
+      .where('id=:id', { id })
+      .execute();
+    return true;
   }
 
   getType(type: CommentType) {

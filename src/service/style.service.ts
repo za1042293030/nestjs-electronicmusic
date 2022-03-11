@@ -18,4 +18,11 @@ export class StyleService {
       .where('style.parent_id is null')
       .getMany();
   }
+
+  async getSelectStyles() {
+    return this.styleRepository
+      .createQueryBuilder('style')
+      .select(['style.id', 'style.name'])
+      .getMany();
+  }
 }

@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { PlayList } from 'src/entity';
+import { File, PlayList } from 'src/entity';
 import Util from 'src/util';
 import { getConnection, Repository } from 'typeorm';
 import { SongService } from '.';
@@ -257,6 +257,16 @@ export class PlaylistService {
       if (e.sqlState === '23000')
         throw new HttpException('歌单里已经有这首歌了', HttpStatus.BAD_REQUEST);
     }
+    await this.playListRepository.createQueryBuilder()
+      .update()
+      .set(
+        {
+          updateTime: new Date(),
+        },
+      )
+      .where('id=:id', { id: playListId })
+      .andWhere('createBy=:userId', { userId })
+      .execute();
     return true;
   }
 
@@ -277,6 +287,59 @@ export class PlaylistService {
       return false;
     else
       return true;
+  }
+
+  async getApprovingPlayLists(pageIndex: number, pageSize: number) {
+    const [comments, totalCount] = await this.playListRepository
+      .createQueryBuilder('pl')
+      .select(['pl.id', 'pl.name', 'pl.createTime', 'pl.describe'])
+      .leftJoin('pl.createBy', 'user')
+      .addSelect(['user.nickName', 'user.id'])
+      .leftJoin('pl.cover', 'cover', 'cover.isDelete=0')
+      .addSelect(['cover.dir', 'cover.name', 'cover.type'])
+      .where('pl.auditStatus=:status', { status: AuditStatus.APPROVING })
+      .andWhere('pl.isDelete=0')
+      .orderBy('pl.createTime', 'DESC')
+      .skip(pageSize * (pageIndex - 1))
+      .take(pageSize)
+      .getManyAndCount();
+    return {
+      data: this.handlePlayListsResponse(comments),
+      totalCount,
+    };
+  }
+
+  async changePlayListsAuditStatus(id: number, auditStatus: AuditStatus) {
+    await getConnection().transaction(async tem => {
+      const playList = await this.playListRepository
+        .createQueryBuilder('pl')
+        .select(['pl.id'])
+        .leftJoin('pl.cover', 'cover', 'cover.isDelete=0')
+        .addSelect(['cover.id'])
+        .where('pl.id=:id', { id })
+        .getOne();
+      await tem
+        .createQueryBuilder()
+        .update(PlayList)
+        .set({
+          auditStatus,
+        })
+        .where('id=:id', { id })
+        .execute();
+      const fileQuery = tem
+        .createQueryBuilder()
+        .update(File)
+        .set({
+          auditStatus,
+        });
+      if (playList?.cover) {
+        await
+          fileQuery
+            .where('id=:id', { id: playList.cover.id })
+            .execute();
+      }
+    });
+    return true;
   }
 
   handlePlayListResponse(playList: PlayList, delSongs = false) {

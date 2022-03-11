@@ -54,8 +54,8 @@ export class DynamicService {
       .where('dy.isDelete=0')
       .andWhere('dy.auditStatus=:status', { status: AuditStatus.RESOLVE })
       .andWhere('dy.isPublish=:isPublish', { isPublish: 1 })
-      .andWhere('CHAR_LENGTH(dy.content) > 50 OR pic.id is not null OR song.id is not null OR' +
-        ' user.role=2')
+      .andWhere('(CHAR_LENGTH(dy.content) > 50 OR pic.id is not null OR song.id is not null OR' +
+        ' user.role=2)')
       .orderBy('RAND()')
       .skip(pageSize * (pageIndex - 1))
       .take(pageSize)
@@ -268,6 +268,55 @@ export class DynamicService {
     else if (affected === 1)
       return true;
     else return false;
+  }
+
+  async getApprovingDynamics(pageIndex: number, pageSize: number) {
+    const [dynamics, totalCount] = await this.dynamicRepository
+      .createQueryBuilder('dy')
+      .select(['dy.id', 'dy.createTime', 'dy.content'])
+      .leftJoin('dy.createBy', 'user')
+      .addSelect(['user.id', 'user.nickName'])
+      .leftJoin('dy.song', 'song', 'song.isDelete=0')
+      .addSelect(['song.id', 'song.name'])
+      .leftJoin('dy.pictures', 'pic', 'pic.isDelete=0')
+      .addSelect(['pic.id', 'pic.dir', 'pic.name', 'pic.type'])
+      .where('dy.isDelete=0')
+      .andWhere('dy.auditStatus=:status', { status: AuditStatus.APPROVING })
+      .andWhere('dy.isPublish=:isPublish', { isPublish: 1 })
+      .orderBy('dy.createTime', 'DESC')
+      .skip(pageSize * (pageIndex - 1))
+      .take(pageSize)
+      .getManyAndCount();
+    return {
+      data: this.handleDynamicsResponse(dynamics),
+      totalCount,
+    };
+  }
+
+  async changeDynamicsAuditStatus(id: number, auditStatus: AuditStatus) {
+    await getConnection().transaction(async tem => {
+      await tem
+        .createQueryBuilder()
+        .update(Dynamic)
+        .set({
+          auditStatus,
+        })
+        .where('id=:id', { id })
+        .execute();
+      await tem
+        .createQueryBuilder()
+        .update(File)
+        .set({
+          auditStatus,
+        })
+        .where({
+          dynamic: {
+            id
+          },
+        })
+        .execute();
+    });
+    return true;
   }
 
   /**

@@ -1,7 +1,7 @@
 import { PipeTransform, Injectable, ArgumentMetadata, HttpException, HttpStatus } from '@nestjs/common';
 
 @Injectable()
-export class NumberMaxPipe implements PipeTransform {
+export class NumberMaxPipe implements PipeTransform<number> {
   private max: number;
 
   constructor(max: number) {

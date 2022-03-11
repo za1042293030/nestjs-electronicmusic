@@ -1,8 +1,7 @@
-import { Controller, Get, Req, Headers, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Query, ParseIntPipe } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { SearchService } from 'src/service';
-import { NumberMaxPipe } from '../pipe/numberMax.pipe';
+import { NumberMaxPipe } from 'src/pipe';
 
 @ApiTags('搜索')
 @Controller('/api/search')

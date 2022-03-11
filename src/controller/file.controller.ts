@@ -55,7 +55,7 @@ export class FileController {
   @UseInterceptors(
     FileInterceptor('song', {
       limits: {
-        fileSize: 20 * 1024 * 1024,
+        fileSize: 50 * 1024 * 1024,
       },
       fileFilter: Util.songFileFilter,
     }),

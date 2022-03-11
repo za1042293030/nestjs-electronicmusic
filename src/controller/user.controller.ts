@@ -5,16 +5,13 @@ import {
   ParseIntPipe,
   Post,
   Query,
-  Req,
   UseGuards,
   ValidationPipe,
-  Headers,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UserService } from 'src/service/user.service';
 import { RegisterInfoDTO } from 'src/dto';
 import { JWT } from 'src/enum';
-import { Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { NumberMaxPipe } from '../pipe/numberMax.pipe';
 
@@ -53,5 +50,12 @@ export class UserController {
     @Query('id', ParseIntPipe) id: number,
   ) {
     return this.userService.getAdminInfo(id);
+  }
+
+  @Get('/getSelectArtists')
+  getSelectArtists(
+    @Query('key') key: string,
+  ) {
+    return this.userService.getSelectArtists(key);
   }
 }

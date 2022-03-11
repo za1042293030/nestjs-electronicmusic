@@ -1,8 +1,20 @@
-import { Controller, Get, Req, Headers, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
+import {
+  Controller,
+  Get,
+  Query,
+  ParseIntPipe,
+  UseGuards,
+  Post,
+  Body,
+  ValidationPipe, Req,
+} from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AlbumService } from 'src/service';
-import { NumberMaxPipe } from '../pipe/numberMax.pipe';
+import { NumberMaxPipe } from 'src/pipe';
+import { AuthGuard } from '@nestjs/passport';
+import { JWT } from 'src/enum';
+import { CreateAlbumDTO } from '../dto';
+import { IUserRequest } from '../typings';
 
 @ApiTags('专辑')
 @Controller('/api/album')
@@ -31,5 +43,23 @@ export class AlbumController {
     @Query('pageSize', ParseIntPipe, new NumberMaxPipe(10)) pageSize: number,
   ) {
     return await this.albumService.getAlbumByUserId(id, pageIndex, pageSize);
+  }
+
+  @Get('/getApprovingAlbums')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async getApprovingAlbums(
+    @Query('pageIndex', ParseIntPipe) pageIndex: number,
+    @Query('pageSize', ParseIntPipe, new NumberMaxPipe(50)) pageSize: number,
+  ) {
+    return await this.albumService.getApprovingAlbums(pageIndex, pageSize);
+  }
+
+  @Post('/createAlbum')
+  @UseGuards(AuthGuard(JWT.LOGIN))
+  async createAlbum(
+    @Body(ValidationPipe) createAlbumInfo: CreateAlbumDTO,
+    @Req() { user }: IUserRequest,
+  ) {
+    return await this.albumService.createAlbum(createAlbumInfo, user.id);
   }
 }
