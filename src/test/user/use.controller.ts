@@ -32,7 +32,7 @@ describe('UserController', () => {
         nickName: 'test',
         userName: 'test',
       };
-      expect(userController.getUserByUserName('test')).resolves.toEqual(result);
+      expect(userController.getUserInfo(1)).resolves.toEqual(result);
     });
   });
 });

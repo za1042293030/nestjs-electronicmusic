@@ -102,7 +102,7 @@ export class PlaylistService {
   async getPlayListsById(id: number) {
     const playList = await this.playListRepository
       .createQueryBuilder('playlist')
-      .select(['playlist.id', 'playlist.name', 'playlist.describe', 'playlist.commentedCount'])
+      .select(['playlist.id', 'playlist.name', 'playlist.describe', 'playlist.commentedCount','playlist.createTime'])
       .leftJoin('playlist.createBy', 'user')
       .addSelect(['user.nickName', 'user.id'])
       .leftJoin('playlist.songs', 'song', 'song.isDelete=0 and song.auditStatus=:status', {

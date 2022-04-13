@@ -6,15 +6,15 @@ import {
   UseGuards,
   Post,
   Body,
-  ValidationPipe, Req,
+  ValidationPipe, Req, ParseEnumPipe,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AlbumService } from 'src/service';
 import { NumberMaxPipe } from 'src/pipe';
 import { AuthGuard } from '@nestjs/passport';
-import { JWT } from 'src/enum';
-import { CreateAlbumDTO } from '../dto';
-import { IUserRequest } from '../typings';
+import { AuditStatus, JWT } from 'src/enum';
+import { CreateAlbumDTO } from 'src/dto';
+import { IUserRequest } from 'src/typings';
 
 @ApiTags('专辑')
 @Controller('/api/album')
@@ -23,7 +23,7 @@ export class AlbumController {
   }
 
   @Get('/getRecommendAlbums')
-  async getRecommendSongs(
+  async getRecommendAlbums(
     @Query('size', ParseIntPipe, new NumberMaxPipe(40)) size: number,
   ) {
     return await this.albumService.getRecommendAlbums(size);
@@ -61,5 +61,14 @@ export class AlbumController {
     @Req() { user }: IUserRequest,
   ) {
     return await this.albumService.createAlbum(createAlbumInfo, user.id);
+  }
+
+  @Post('/changeAlbumsAuditStatus')
+  @UseGuards(AuthGuard(JWT.ADMIN))
+  async changeAlbumsAuditStatus(
+    @Query('id', ParseIntPipe) id: number,
+    @Query('status', new ParseEnumPipe(AuditStatus)) status: AuditStatus,
+  ) {
+    return await this.albumService.changeAlbumsAuditStatus(id, status);
   }
 }

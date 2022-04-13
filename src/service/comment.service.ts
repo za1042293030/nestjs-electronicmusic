@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IDInfoDTO, SendCommentInfoDTO } from 'src/dto';
-import { Comment, Dynamic, File } from 'src/entity';
+import { Comment } from 'src/entity';
 import { AuditStatus, CommentType } from 'src/enum';
 import { IPayload } from 'src/typings';
 import Util from 'src/util';

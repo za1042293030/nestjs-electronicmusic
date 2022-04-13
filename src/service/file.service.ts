@@ -4,7 +4,7 @@ import { createWriteStream, constants } from 'fs';
 import { access, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { cwd } from 'process';
-import { File, User } from 'src/entity';
+import { File } from 'src/entity';
 import { IFile, IPayload } from 'src/typings';
 import Util from 'src/util';
 import { Repository } from 'typeorm';

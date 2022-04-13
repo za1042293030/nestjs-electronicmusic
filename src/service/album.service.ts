@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Album, Song, User } from 'src/entity';
+import { Album, File, Song, User } from 'src/entity';
 import Util from 'src/util';
-import { getConnection, Repository } from 'typeorm';
+import { getConnection, In, Repository } from 'typeorm';
 import { AuditStatus } from 'src/enum';
 import { CreateAlbumDTO } from '../dto';
 
@@ -126,7 +126,9 @@ export class AlbumService {
   async getApprovingAlbums(pageIndex: number, pageSize: number) {
     const [albums, totalCount] = await this.albumRepository
       .createQueryBuilder('album')
-      .select(['album.id', 'album.name', 'album.coverUrl', 'album.cover'])
+      .select(['album.id', 'album.name', 'album.coverUrl', 'album.cover', 'album.describe', 'album.createTime'])
+      .leftJoin('album.createBy', 'artistc')
+      .addSelect(['artistc.nickName', 'artistc.id'])
       .leftJoin('album.artists', 'artist')
       .addSelect(['artist.nickName', 'artist.id'])
       .leftJoin('album.cover', 'cover', 'cover.isDelete=0 and cover.auditStatus=:status', {
@@ -136,16 +138,26 @@ export class AlbumService {
       .leftJoin('album.songs', 'song', 'song.isDelete=0 and song.auditStatus=:status', {
         status: AuditStatus.APPROVING,
       })
-      .addSelect(['song.id'])
+      .addSelect(['song.id', 'song.name', 'song.coverUrl', 'song.url', 'song.describe'])
       .leftJoin('song.styles', 'style')
       .addSelect(['style.id', 'style.name'])
+      .leftJoin('song.artists', 'sartist')
+      .addSelect(['sartist.id', 'sartist.nickName'])
+      .leftJoin('song.file', 'file', 'file.isDelete=0 and file.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
+      })
+      .addSelect(['file.dir', 'file.name', 'file.type'])
+      .leftJoin('song.cover', 'scover', 'scover.isDelete=0 and scover.auditStatus=:status', {
+        status: AuditStatus.RESOLVE,
+      })
+      .addSelect(['scover.dir', 'scover.name', 'scover.type'])
       .where('album.isDelete=0')
       .andWhere('album.auditStatus=:status', { status: AuditStatus.APPROVING })
       .skip(pageSize * (pageIndex - 1))
       .take(pageSize)
       .getManyAndCount();
     return {
-      data: AlbumService.handleAlbumsResponse(albums),
+      data: AlbumService.handleAlbumsResponse(albums, false),
       totalCount,
     };
   }
@@ -154,15 +166,6 @@ export class AlbumService {
     const { cover, describe, name, songs } = createAlbumInfo;
     await getConnection().transaction(async tem => {
       const newDate = new Date();
-      await tem.createQueryBuilder()
-        .update(User)
-        .set({
-          role: {
-            id: 2,
-          },
-        })
-        .where('id=:id', { id: userId })
-        .execute();
       const {
         identifiers: [{ id }],
       } = await tem.createQueryBuilder()
@@ -220,17 +223,69 @@ export class AlbumService {
     return true;
   }
 
+  async changeAlbumsAuditStatus(id: number, auditStatus: AuditStatus) {
+    await getConnection().transaction(async tem => {
+      const album = await tem.createQueryBuilder()
+        .select(['album.id'])
+        .from(Album, 'album')
+        .leftJoin('album.createBy', 'artistc')
+        .addSelect(['artistc.id'])
+        .leftJoin('album.songs', 'song', 'song.isDelete=0')
+        .addSelect(['song.id'])
+        .leftJoin('album.cover', 'cover', 'cover.isDelete=0')
+        .addSelect(['cover.id'])
+        .leftJoin('song.file', 'file', 'file.isDelete=0')
+        .addSelect(['file.id'])
+        .leftJoin('song.cover', 'scover', 'scover.isDelete=0')
+        .addSelect(['scover.id'])
+        .where('album.id=:id', { id })
+        .getOne();
+      if (!album) throw new HttpException('没有该专辑', HttpStatus.BAD_REQUEST);
+      await tem.createQueryBuilder()
+        .update(User)
+        .set({
+          role: {
+            id: 2,
+          },
+        })
+        .where('id=:id', { id: album.createBy.id })
+        .execute();
+      await tem.createQueryBuilder()
+        .update(Album)
+        .set({
+          auditStatus,
+        })
+        .where({ id })
+        .execute();
+      await tem.createQueryBuilder()
+        .update(Song)
+        .set({
+          auditStatus,
+        })
+        .where({ id: In(album.songs.map(song => song.id)) })
+        .execute();
+      await tem.createQueryBuilder()
+        .update(File)
+        .set({
+          auditStatus,
+        })
+        .where({ id: In([album.cover.id, ...album.songs.map(song => song.file.id), ...album.songs.map(song => song.cover.id)]) })
+        .execute();
+    });
+    return true;
+  }
+
   /**
    * 处理专辑列表信息
    * @param albums 专辑列表
    * @param delSongs 是否删除歌曲信息
    * @returns
    */
-  static handleAlbumsResponse(albums: Album[], delSongs = true) {
+  static handleAlbumsResponse(albums: Album[], delStyles = true, delSongs = true) {
     if (!albums) return [];
     const res = [];
     for (const album of albums) {
-      res.push(this.handleAlbumResponse(album, delSongs));
+      res.push(this.handleAlbumResponse(album, delStyles, delSongs));
     }
     return res;
   }
@@ -241,7 +296,7 @@ export class AlbumService {
    * @param delSongs 是否删除歌曲信息
    * @returns
    */
-  static handleAlbumResponse(album: Album, delSongs = false) {
+  static handleAlbumResponse(album: Album, delStyles = true, delSongs = false) {
     if (!album) return;
     const { coverUrl, cover, songs } = album;
     delete album.coverUrl;
@@ -254,7 +309,7 @@ export class AlbumService {
       styles: Util.StyleSet(songs.map(song => song.styles).flat()),
       songs: songs.map(song => {
         const { file, cover, coverUrl, url } = song;
-        delete song.styles;
+        delStyles && delete song.styles;
         delete song.coverUrl;
         delete song.url;
         return {
