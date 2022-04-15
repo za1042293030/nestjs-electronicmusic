@@ -1,6 +1,6 @@
 import { AuditStatus } from 'src/enum';
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { Song, User, File, Comment, Like } from '.';
+import { Song, User, File, Comment } from '.';
 
 @Entity('dynamic')
 export class Dynamic {
@@ -50,7 +50,4 @@ export class Dynamic {
 
   @OneToMany(() => Comment, comment => comment.dynamic)
   comments: Comment[];
-
-  @OneToMany(() => Like, like => like.dynamic)
-  likes: Like[];
 }

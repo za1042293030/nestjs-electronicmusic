@@ -8,7 +8,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Route, User } from '.';
+import { User } from '.';
 
 @Entity('role')
 export class Role {
@@ -43,14 +43,6 @@ export class Role {
   @ManyToOne(() => User, user => user.creates)
   @JoinColumn({ name: 'create_by' })
   createBy: User;
-
-  @ManyToMany(() => Route, router => router.roles)
-  @JoinTable({
-    name: 'role_route',
-    joinColumn: { name: 'role_id' },
-    inverseJoinColumn: { name: 'route_id' },
-  })
-  routes: Route[];
 
   @OneToMany(() => User, user => user.role)
   users: User[];

@@ -7,7 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { User, PlayList, Song } from '.';
+import { User, Song } from '.';
 
 @Entity('style')
 export class Style {

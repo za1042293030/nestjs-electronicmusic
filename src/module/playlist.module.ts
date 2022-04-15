@@ -1,4 +1,4 @@
-import { PlaylistService, SongService } from 'src/service';
+import { PlaylistService } from 'src/service';
 import { PlaylistController } from 'src/controller';
 import { Module } from '@nestjs/common';
 import { PlayList } from 'src/entity';

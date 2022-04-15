@@ -40,7 +40,7 @@ export class AuthController {
   }
 
   @Post('/register')
-  async register(@Body(ValidationPipe) registerInfo: RegisterInfoDTO) /* : Promise<TokenDTO> */ {
+  async register(@Body(ValidationPipe) registerInfo: RegisterInfoDTO) : Promise<TokenDTO> {
     await this.authService.validateRegister(registerInfo);
     return this.authService.register(registerInfo);
   }

@@ -1,6 +1,6 @@
 import { AuditStatus } from 'src/enum';
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { Album, Dynamic, Like, PlayList, Song, User } from '.';
+import { Album, Dynamic, PlayList, Song, User } from '.';
 
 @Entity('comment')
 export class Comment {
@@ -58,7 +58,4 @@ export class Comment {
   @ManyToOne(() => User, user => user.comments)
   @JoinColumn({ name: 'create_by' })
   createBy: User;
-
-  @OneToMany(() => Like, like => like.comment)
-  likes: Like[];
 }

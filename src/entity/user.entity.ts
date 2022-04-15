@@ -1,4 +1,4 @@
-import { Album, PlayList, Role, Song, File, Dynamic, Comment, Message, Like } from '.';
+import { Album, PlayList, Role, Song, File, Dynamic, Comment } from '.';
 import {
   Column,
   Entity,
@@ -95,29 +95,9 @@ export class User {
   @OneToMany(() => File, file => file.createBy)
   files: File[];
 
-  @OneToMany(() => Message, message => message.toUser)
-  messages: Message[];
-
-  @OneToMany(() => Message, message => message.createBy)
-  sendMessages: Message[];
-
   @OneToMany(() => Album, album => album.createBy)
   createdAlbums: Album[];
 
   @OneToMany(() => Song, song => song.createBy)
   createdSongs: Song[];
-
-  @OneToMany(() => Like, like => like.createBy)
-  likes: Like[];
-
-  @ManyToMany(() => User, user => user.followings)
-  @JoinTable({
-    name: 'following_followed',
-    joinColumn: { name: 'following_user_id' },
-    inverseJoinColumn: { name: 'followed_user_id' },
-  })
-  followeds: User[];
-
-  @ManyToMany(() => User, user => user.followeds)
-  followings: User[];
 }

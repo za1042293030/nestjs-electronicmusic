@@ -10,7 +10,7 @@ import {
   OneToOne,
   OneToMany,
 } from 'typeorm';
-import { PlayList, User, Style, File, Comment, Album, Dynamic, Like } from '.';
+import { PlayList, User, Style, File, Comment, Album, Dynamic } from '.';
 
 @Entity('song')
 export class Song {
@@ -101,7 +101,4 @@ export class Song {
 
   @OneToMany(() => Comment, comment => comment.song)
   comments: Comment[];
-
-  @OneToMany(() => Like, like => like.song)
-  likes: Like[];
 }
