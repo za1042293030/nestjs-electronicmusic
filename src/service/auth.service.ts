@@ -123,22 +123,12 @@ export class AuthService {
     return true;
   }
 
-  /**
-   * 根据用户名检查用户是否存在
-   * @param userName 用户名
-   * @returns 是否存在该用户
-   */
   async checkUserNameUnique(userName: string) {
     const user = await this.findUser({ userName });
     if (user) return false;
     return true;
   }
 
-  /**
-   * 根据昵称检查用户是否存在
-   * @param nickName 昵称
-   * @returns 是否存在该用户
-   */
   async checkNickNameUnique(nickName: string) {
     const user = await this.findUser({ nickName });
     if (user) return false;

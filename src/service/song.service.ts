@@ -68,7 +68,7 @@ export class SongService {
 
   /**
    * 获取推荐歌曲
-   * @param id 风格id
+   * @param style 风格id
    * @param size 个数
    * @returns
    */

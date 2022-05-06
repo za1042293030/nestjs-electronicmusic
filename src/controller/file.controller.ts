@@ -12,7 +12,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { IFile, IUserRequest } from 'src/typings';
 import Util from 'src/util';
 import { AuthGuard } from '@nestjs/passport';
-import { JWT } from 'src/enum';
+import { AuditStatus, JWT } from 'src/enum';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('文件')
@@ -35,10 +35,7 @@ export class FileController {
     }),
   )
   @UseGuards(AuthGuard(JWT.LOGIN))
-  async uploadImage(
-    @UploadedFile() file: IFile,
-    @Req() { user }: IUserRequest,
-  ) {
+  async uploadImage(@UploadedFile() file: IFile, @Req() { user }: IUserRequest) {
     const { path, id } = await this.fileService.upload(file, 'img', user);
     return {
       src: Util.generateUrl(path),
@@ -61,10 +58,7 @@ export class FileController {
     }),
   )
   @UseGuards(AuthGuard(JWT.LOGIN))
-  async uploadSong(
-    @UploadedFile() file: IFile,
-    @Req() { user }: IUserRequest,
-  ) {
+  async uploadSong(@UploadedFile() file: IFile, @Req() { user }: IUserRequest) {
     const { path, id } = await this.fileService.upload(file, 'song', user);
     return {
       path: Util.generateUrl(path),
@@ -87,11 +81,9 @@ export class FileController {
     }),
   )
   @UseGuards(AuthGuard(JWT.LOGIN))
-  async uploadAvatar(
-    @UploadedFile() file: IFile,
-    @Req() { user }: IUserRequest,
-  ) {
-    const { path, id } = await this.fileService.upload(file, 'avatar', user);
+  async uploadAvatar(@UploadedFile() file: IFile, @Req() { user }: IUserRequest) {
+    const { path, id } = await this.fileService.upload(file, 'avatar', user, AuditStatus.RESOLVE);
+    await this.fileService.changeUserAvatar(id, user.id);
     return {
       src: Util.generateUrl(path),
       id,

@@ -4,7 +4,8 @@ import { createWriteStream, constants } from 'fs';
 import { access, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { cwd } from 'process';
-import { File } from 'src/entity';
+import { File, User } from 'src/entity';
+import { AuditStatus } from 'src/enum';
 import { IFile, IPayload } from 'src/typings';
 import Util from 'src/util';
 import { Repository } from 'typeorm';
@@ -14,17 +15,23 @@ export class FileService {
   constructor(
     @InjectRepository(File)
     private readonly fileRepository: Repository<File>,
-  ) {
-  }
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
 
   /**
    * 上传文件
    * @param file 文件
    * @returns 路径
    */
-  async upload(file: IFile, dir: string, user: IPayload) {
+  async upload(
+    file: IFile,
+    dir: string,
+    user: IPayload,
+    auditStatus: AuditStatus = AuditStatus.APPROVING,
+  ) {
     await this.validationDir(dir);
-    return this.writeFile(file, dir, user);
+    return this.writeFile(file, dir, user, auditStatus);
   }
 
   /**
@@ -32,7 +39,12 @@ export class FileService {
    * @param file 文件
    * @returns 路径
    */
-  async writeFile(file: IFile, dir: string, user: IPayload) {
+  async writeFile(
+    file: IFile,
+    dir: string,
+    user: IPayload,
+    auditStatus: AuditStatus = AuditStatus.APPROVING,
+  ) {
     const { size, originalname } = file;
     const originalNameArr = originalname.split('.');
     const fileName = Util.generateFileName(originalname);
@@ -59,6 +71,7 @@ export class FileService {
           original: originalname,
           type: originalNameArr[originalNameArr.length - 1].toLowerCase(),
           dir,
+          auditStatus,
         },
       ])
       .execute();
@@ -66,6 +79,19 @@ export class FileService {
       path: `/${dir}/${fileName}`,
       id,
     };
+  }
+
+  async changeUserAvatar(fileId: number, userId: number) {
+    await this.userRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        avatar: {
+          id: fileId,
+        },
+      })
+      .where('id=:userId', { userId })
+      .execute();
   }
 
   /**
